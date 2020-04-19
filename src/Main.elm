@@ -23,8 +23,8 @@ type alias Model =
 init : Model
 init =
     { featureWidth = 21
-    , horizontalPadding = 10
-    , verticalPadding = 10
+    , horizontalPadding = 4
+    , verticalPadding = 4
     }
 
 
@@ -47,10 +47,19 @@ update msg model =
                 Nothing ->
                     model
 
+        VerticalPaddingSlid val ->
+            case String.toInt val of
+                Just n ->
+                    { model | verticalPadding = n }
+
+                Nothing ->
+                    model
+
 
 type Msg
     = FeatureWidthSlid String
     | HorizontalPaddingSlid String
+    | VerticalPaddingSlid String
 
 
 view : Model -> H.Html Msg
@@ -58,7 +67,7 @@ view model =
     H.div []
         [ H.label [ HA.for "featureWidth" ]
             [ H.div []
-                [ H.text "feature width"
+                [ H.text "Feature Width"
                 , H.input
                     [ HA.type_ "range"
                     , HA.id "featureWidth"
@@ -72,9 +81,9 @@ view model =
                 , H.span [] [ H.text <| String.fromInt model.featureWidth ]
                 ]
             ]
-        , H.label [ HA.for "horizontalPadding" ]
+        , H.label [ HA.for "HorizontalPadding" ]
             [ H.div []
-                [ H.text "horizontalPadding"
+                [ H.text "Horizontal Padding"
                 , H.input
                     [ HA.type_ "range"
                     , HA.id "horizontalPadding"
@@ -88,35 +97,98 @@ view model =
                 , H.span [] [ H.text <| String.fromInt model.horizontalPadding ]
                 ]
             ]
-            |> List.singleton
-            |> H.div []
-        , rows model
-            |> H.tbody []
-            |> List.singleton
-            |> H.table
-                []
+        , H.label [ HA.for "verticalPadding" ]
+            [ H.div []
+                [ H.text "Vertical Padding"
+                , H.input
+                    [ HA.type_ "range"
+                    , HA.id "verticalPadding"
+                    , HA.min "0"
+                    , HA.max "20"
+                    , HA.step "2"
+                    , HA.value <| String.fromInt model.verticalPadding
+                    , onInput VerticalPaddingSlid
+                    ]
+                    []
+                , H.span [] [ H.text <| String.fromInt model.verticalPadding ]
+                ]
+            ]
+        , H.table
+            []
+            [ H.thead []
+                [ H.tr [] <|
+                    H.th [] []
+                        :: (List.range 1
+                                (model.horizontalPadding * 2 + model.featureWidth)
+                                |> List.map
+                                    (String.fromInt
+                                        >> H.text
+                                        >> List.singleton
+                                        >> H.th []
+                                    )
+                           )
+                , H.tr [] <|
+                    H.th [] []
+                        :: (List.range 1
+                                (model.horizontalPadding * 2 + model.featureWidth)
+                                |> List.reverse
+                                |> List.map
+                                    (String.fromInt
+                                        >> H.text
+                                        >> List.singleton
+                                        >> H.th []
+                                    )
+                           )
+                ]
+            , H.tbody [] <| rows model
+            ]
         ]
 
 
 rows : Model -> List (H.Html msg)
 rows model =
-    model.featureWidth
-        // 2
+    ((model.verticalPadding
+        - 1
         |> List.range 0
         |> List.map
-            (stitches model)
+            (paddingRow model)
+     )
+        ++ (model.featureWidth
+                // 2
+                |> List.range 0
+                |> List.map
+                    (stitches model)
+           )
+    )
         |> mirror
-        |> List.indexedMap (addRowNumberToRow model.featureWidth)
+        |> addRowNumbers
+
+
+addRowNumbers : List (List (H.Html msg)) -> List (H.Html msg)
+addRowNumbers rs =
+    List.indexedMap (addRowNumberToRow <| List.length rs) rs
 
 
 addRowNumberToRow : Int -> Int -> List (H.Html msg) -> H.Html msg
-addRowNumberToRow width idx r =
-    H.tr [] <| rowTitle (width - idx) :: r
+addRowNumberToRow count idx r =
+    H.tr [] <| rowTitle (count - idx) :: r
 
 
 rowTitle : Int -> H.Html msg
 rowTitle n =
     H.th [] [ H.text <| String.fromInt n ]
+
+
+paddingRow : Model -> Int -> List (H.Html msg)
+paddingRow { featureWidth, horizontalPadding } rowIdx =
+    featureWidth
+        // 2
+        |> List.range 0
+        |> List.map
+            (seedStitch rowIdx)
+        |> (++) (List.range 0 (horizontalPadding - 1) |> List.map (seedStitch rowIdx))
+        |> mirror
+        |> List.map stitchToCell
 
 
 stitches : Model -> Int -> List (H.Html msg)
@@ -133,10 +205,6 @@ stitches { featureWidth, horizontalPadding } rowIdx =
 
 stitch : Int -> Int -> Int -> Stitch
 stitch width rowIdx n =
-    let
-        _ =
-            Debug.log "stitching" ( width, rowIdx, n )
-    in
     if n > (width - rowIdx - 1) then
         stockingStitch rowIdx
 
