@@ -36,23 +36,26 @@ type Msg
 view : Model -> H.Html Msg
 view model =
     H.div []
-        [ rows model
+        [ H.label [ HA.for "featureWidth" ]
+            [ H.text "feature width"
+            , H.input
+                [ HA.type_ "range"
+                , HA.min "9"
+                , HA.max "105"
+                , HA.step "4"
+                , HA.value <| String.fromInt model
+                , onInput WidthSlid
+                ]
+                []
+            ]
+            |> List.singleton
+            |> H.div []
+        , H.div [] [ H.text <| String.fromInt model ]
+        , rows model
             |> H.tbody []
             |> List.singleton
             |> H.table
                 []
-        , H.input
-            [ HA.type_ "range"
-            , HA.min "11"
-            , HA.max "51"
-            , HA.step "2"
-            , HA.value <| String.fromInt model
-            , onInput WidthSlid
-            ]
-            []
-            |> List.singleton
-            |> H.div []
-        , H.div [] [ H.text <| String.fromInt model ]
         ]
 
 
@@ -62,8 +65,14 @@ rows width =
         // 2
         |> List.range 0
         |> List.map
-            (row width)
+            (stitches width)
         |> mirror
+        |> List.indexedMap (addRowNumberToRow width)
+
+
+addRowNumberToRow : Int -> Int -> List (H.Html msg) -> H.Html msg
+addRowNumberToRow width idx r =
+    H.tr [] <| rowTitle (width - idx) :: r
 
 
 row : Int -> Int -> H.Html msg
