@@ -17,15 +17,53 @@ type alias Model =
     { featureWidth : Int
     , horizontalPadding : Int
     , verticalPadding : Int
+    , featureShape : FeatureShape
     }
 
 
 init : Model
 init =
-    { featureWidth = 21
-    , horizontalPadding = 4
-    , verticalPadding = 4
+    { featureWidth = 37
+    , horizontalPadding = 0
+    , verticalPadding = 0
+    , featureShape = Circle
     }
+
+
+type FeatureShape
+    = Diamond
+    | Square
+    | Circle
+    | Hypocycloid
+
+
+featureShapeToString : FeatureShape -> String
+featureShapeToString fs =
+    case fs of
+        Diamond ->
+            "Diamond"
+
+        Square ->
+            "Square"
+
+        Circle ->
+            "Circle"
+
+        Hypocycloid ->
+            "Hypocycloid"
+
+
+stringToFeatureShape : String -> Maybe FeatureShape
+stringToFeatureShape fs =
+    case fs of
+        "Diamond" ->
+            Just Diamond
+
+        "Square" ->
+            Just Square
+
+        _ ->
+            Nothing
 
 
 update : Msg -> Model -> Model
@@ -55,11 +93,15 @@ update msg model =
                 Nothing ->
                     model
 
+        ShapeRadioClicked shape ->
+            { model | featureShape = shape }
+
 
 type Msg
     = FeatureWidthSlid String
     | HorizontalPaddingSlid String
     | VerticalPaddingSlid String
+    | ShapeRadioClicked FeatureShape
 
 
 view : Model -> H.Html Msg
@@ -111,6 +153,29 @@ view model =
                     ]
                     []
                 , H.span [] [ H.text <| String.fromInt model.verticalPadding ]
+                ]
+            ]
+        , H.div []
+            [ H.label []
+                [ H.text "Square"
+                , radioButton
+                    [ HA.checked <| model.featureShape == Square
+                    , HE.onClick <| ShapeRadioClicked Square
+                    ]
+                ]
+            , H.label []
+                [ H.text "Diamond"
+                , radioButton
+                    [ HA.checked <| model.featureShape == Diamond
+                    , HE.onClick <| ShapeRadioClicked Diamond
+                    ]
+                ]
+            , H.label []
+                [ H.text "Circle"
+                , radioButton
+                    [ HA.checked <| model.featureShape == Circle
+                    , HE.onClick <| ShapeRadioClicked Circle
+                    ]
                 ]
             ]
         , H.table
@@ -192,33 +257,46 @@ paddingRow { featureWidth, horizontalPadding } rowIdx =
 
 
 stitches : Model -> Int -> List (H.Html msg)
-stitches { featureWidth, horizontalPadding } rowIdx =
-    featureWidth
+stitches model rowIdx =
+    model.featureWidth
         // 2
         |> List.range 0
         |> List.map
-            (stitch (featureWidth // 2) rowIdx)
-        |> (++) (List.range 0 (horizontalPadding - 1) |> List.map (seedStitch rowIdx))
+            (stitch model rowIdx)
+        |> (++) (List.range 0 (model.horizontalPadding - 1) |> List.map (seedStitch rowIdx))
         |> mirror
         |> List.map stitchToCell
 
 
-stitch : Int -> Int -> Int -> Stitch
-stitch width rowIdx n =
-    if n > (width - rowIdx - 1) then
+stitch : Model -> Int -> Int -> Stitch
+stitch { featureWidth, featureShape } rowIdx n =
+    if
+        featureShapeAndPositionToStitchFn
+            featureShape
+            featureWidth
+            rowIdx
+            n
+    then
         stockingStitch rowIdx
 
     else
         seedStitch rowIdx n
 
 
-stitchStringToCell : String -> H.Html msg
-stitchStringToCell s =
-    H.td
-        [ HA.class <| "stitch--" ++ s
-        ]
-        [ H.text s
-        ]
+featureShapeAndPositionToStitchFn : FeatureShape -> Int -> Int -> Int -> Bool
+featureShapeAndPositionToStitchFn shape width rowIdx cellIdx =
+    case shape of
+        Diamond ->
+            cellIdx > (width // 2 - rowIdx - 1)
+
+        Square ->
+            True
+
+        Hypocycloid ->
+            (rowIdx * rowIdx + cellIdx * cellIdx |> toFloat |> sqrt) > toFloat width / 2
+
+        Circle ->
+            ((width // 2 - rowIdx) ^ 2 + (width // 2 - cellIdx) ^ 2 |> toFloat |> sqrt) <= (toFloat width / 2)
 
 
 mirror : List a -> List a
@@ -315,3 +393,13 @@ stitchToString s =
 
         WrongPurl ->
             "R"
+
+
+radioButton : List (H.Attribute msg) -> H.Html msg
+radioButton attrs =
+    H.input
+        ([ HA.type_ "radio"
+         ]
+            ++ attrs
+        )
+        []
