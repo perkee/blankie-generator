@@ -109,12 +109,12 @@ view model =
     H.div []
         [ H.label [ HA.for "featureWidth" ]
             [ H.div []
-                [ H.text "Feature Width"
+                [ H.text <| featureShapeToString model.featureShape ++ " Width"
                 , H.input
                     [ HA.type_ "range"
                     , HA.id "featureWidth"
                     , HA.min "9"
-                    , HA.max "105"
+                    , HA.max "145"
                     , HA.step "4"
                     , HA.value <| String.fromInt model.featureWidth
                     , onInput FeatureWidthSlid
@@ -177,6 +177,13 @@ view model =
                     , HE.onClick <| ShapeRadioClicked Circle
                     ]
                 ]
+            , H.label []
+                [ H.text "Hypocycloid"
+                , radioButton
+                    [ HA.checked <| model.featureShape == Hypocycloid
+                    , HE.onClick <| ShapeRadioClicked Hypocycloid
+                    ]
+                ]
             ]
         , H.table
             []
@@ -184,7 +191,7 @@ view model =
                 [ H.tr [] <|
                     H.th [] []
                         :: (List.range 1
-                                (model.horizontalPadding * 2 + model.featureWidth)
+                                (fullWidth model)
                                 |> List.map
                                     (String.fromInt
                                         >> H.text
@@ -195,7 +202,7 @@ view model =
                 , H.tr [] <|
                     H.th [] []
                         :: (List.range 1
-                                (model.horizontalPadding * 2 + model.featureWidth)
+                                (fullWidth model)
                                 |> List.reverse
                                 |> List.map
                                     (String.fromInt
@@ -227,6 +234,16 @@ rows model =
     )
         |> mirror
         |> addRowNumbers
+
+
+fullWidth : Model -> Int
+fullWidth m =
+    m.featureWidth + m.horizontalPadding * 2
+
+
+fullHeight : Model -> Int
+fullHeight m =
+    m.featureWidth + m.verticalPadding * 2
 
 
 addRowNumbers : List (List (H.Html msg)) -> List (H.Html msg)
@@ -283,6 +300,21 @@ stitch { featureWidth, featureShape } rowIdx n =
         seedStitch rowIdx n
 
 
+
+{--
+
+W = 2w
+H = 2h
+S = 2s string
+D = 2d distance between foci
+
+w^2 + d^2 = s^2
+2s + 2d = d + h
+
+
+--}
+
+
 featureShapeAndPositionToStitchFn : FeatureShape -> Int -> Int -> Int -> Bool
 featureShapeAndPositionToStitchFn shape width rowIdx cellIdx =
     case shape of
@@ -296,7 +328,7 @@ featureShapeAndPositionToStitchFn shape width rowIdx cellIdx =
             (rowIdx * rowIdx + cellIdx * cellIdx |> toFloat |> sqrt) > toFloat width / 2
 
         Circle ->
-            ((width // 2 - rowIdx) ^ 2 + (width // 2 - cellIdx) ^ 2 |> toFloat |> sqrt) <= (toFloat width / 2)
+            ((width // 2 - rowIdx) ^ 2 + (width // 2 - cellIdx) ^ 2 |> toFloat |> sqrt) < (toFloat width / 2)
 
 
 mirror : List a -> List a
